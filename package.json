@@ -1,0 +1,444 @@
+{
+  "name": "git-toolkit",
+  "displayName": "Git 工具箱",
+  "description": "在 VS Code 中管理本地忽略、本地分支和线上分支。",
+  "version": "0.3.16",
+  "license": "MIT",
+  "publisher": "shixinxin",
+  "author": {
+    "name": "shixinxin.star",
+    "email": "shixinxin.star@bytedance.com"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "vscode": "^1.107.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "icon": "resources/git-toolkit.png",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/src/extension.js",
+  "files": [
+    "out/src/**",
+    "resources/**",
+    "README.md",
+    "LICENSE"
+  ],
+  "contributes": {
+    "colors": [
+      {
+        "id": "gitToolkit.branchLocalAheadMutedForeground",
+        "description": "本地分支领先远程时的颜色。",
+        "defaults": {
+          "dark": "#2F8F52",
+          "light": "#267743",
+          "highContrast": "#2F8F52"
+        }
+      },
+      {
+        "id": "gitToolkit.branchRemoteAheadMutedForeground",
+        "description": "远程分支领先本地时的颜色。",
+        "defaults": {
+          "dark": "#A85D3A",
+          "light": "#8B4A2D",
+          "highContrast": "#A85D3A"
+        }
+      },
+      {
+        "id": "gitToolkit.branchDivergedMutedForeground",
+        "description": "本地与远程均有更新时的颜色。",
+        "defaults": {
+          "dark": "#A67C2D",
+          "light": "#87651F",
+          "highContrast": "#A67C2D"
+        }
+      }
+    ],
+    "views": {
+      "scm": [
+        {
+          "id": "gitToolkit.localBranchesView",
+          "name": "分支",
+          "visibility": "collapsed"
+        },
+        {
+          "id": "gitToolkit.remoteBranchesView",
+          "name": "远程",
+          "visibility": "collapsed"
+        },
+        {
+          "id": "gitToolkit.ignoreView",
+          "name": "本地忽略",
+          "visibility": "collapsed"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "gitToolkit.ignoreFile",
+        "title": "Git 工具箱: 本地忽略",
+        "icon": "$(exclude)"
+      },
+      {
+        "command": "gitToolkit.showIgnoreRecords",
+        "title": "Git 工具箱: 查看忽略",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "gitToolkit.disableIgnore",
+        "title": "取消忽略",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "gitToolkit.enableIgnore",
+        "title": "重新添加",
+        "icon": "$(add)"
+      },
+      {
+        "command": "gitToolkit.deleteIgnore",
+        "title": "删除记录",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "gitToolkit.refreshIgnore",
+        "title": "刷新",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gitToolkit.refreshLocalBranches",
+        "title": "刷新",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gitToolkit.updateAllLocalBranches",
+        "title": "同步分支",
+        "icon": "$(repo-sync)"
+      },
+      {
+        "command": "gitToolkit.showLocalList",
+        "title": "列表形式",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "gitToolkit.showLocalTree",
+        "title": "树形形式",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "gitToolkit.refreshRemoteBranches",
+        "title": "刷新",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gitToolkit.showRemoteList",
+        "title": "列表形式",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "gitToolkit.showRemoteTree",
+        "title": "树形形式",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "gitToolkit.showFavoriteRemoteBranches",
+        "title": "仅看收藏",
+        "icon": "$(star-empty)"
+      },
+      {
+        "command": "gitToolkit.showAllRemoteBranches",
+        "title": "查看全部",
+        "icon": "$(star-full)"
+      },
+      {
+        "command": "gitToolkit.favoriteRemoteBranch",
+        "title": "收藏",
+        "icon": "$(star-empty)"
+      },
+      {
+        "command": "gitToolkit.unfavoriteRemoteBranch",
+        "title": "取消收藏",
+        "icon": "$(star-full)"
+      },
+      {
+        "command": "gitToolkit.checkoutRemoteBranch",
+        "title": "检出分支",
+        "icon": "$(indent)"
+      },
+      {
+        "command": "gitToolkit.fetchRemote",
+        "title": "获取远程",
+        "icon": "$(git-fetch)"
+      },
+      {
+        "command": "gitToolkit.pullLocalBranch",
+        "title": "拉取分支",
+        "icon": "$(git-fetch)"
+      },
+      {
+        "command": "gitToolkit.pushLocalBranch",
+        "title": "推送分支",
+        "icon": "$(repo-push)"
+      },
+      {
+        "command": "gitToolkit.forcePushLocalBranch",
+        "title": "强制推送",
+        "icon": "$(repo-force-push)"
+      },
+      {
+        "command": "gitToolkit.favoriteUpstreamBranch",
+        "title": "收藏远程",
+        "icon": "$(star-empty)"
+      },
+      {
+        "command": "gitToolkit.copyLocalBranchName",
+        "title": "复制分支名",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "gitToolkit.copySwimlaneInfo",
+        "title": "复制泳道信息",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "gitToolkit.checkoutLocalBranch",
+        "title": "检出分支",
+        "icon": "$(indent)"
+      },
+      {
+        "command": "gitToolkit.renameLocalBranch",
+        "title": "重命名分支",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "gitToolkit.deleteLocalBranch",
+        "title": "删除分支",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "gitToolkit.forceDeleteLocalBranch",
+        "title": "强制删除分支",
+        "icon": "$(warning)"
+      },
+      {
+        "command": "gitToolkit.deleteRemoteBranch",
+        "title": "删除远程分支",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "gitToolkit.mergeLocalBranchIntoCurrent",
+        "title": "将分支合并到当前分支",
+        "icon": "$(git-merge)"
+      },
+      {
+        "command": "gitToolkit.rebaseCurrentOntoLocalBranch",
+        "title": "将当前分支变基到分支",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "gitToolkit.rebaseCurrentOntoRemoteBranch",
+        "title": "将当前分支变基到分支",
+        "icon": "$(git-compare)"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "gitToolkit.ignoreFile",
+          "when": "resourceScheme == file",
+          "group": "git@90"
+        },
+        {
+          "command": "gitToolkit.showIgnoreRecords",
+          "when": "resourceScheme == file",
+          "group": "git@91"
+        }
+      ],
+      "scm/resourceState/context": [
+        {
+          "command": "gitToolkit.ignoreFile",
+          "when": "scmProvider == git",
+          "group": "navigation@90"
+        },
+        {
+          "command": "gitToolkit.showIgnoreRecords",
+          "when": "scmProvider == git",
+          "group": "navigation@91"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "gitToolkit.refreshIgnore",
+          "when": "view == gitToolkit.ignoreView",
+          "group": "navigation"
+        },
+        {
+          "command": "gitToolkit.refreshLocalBranches",
+          "when": "view == gitToolkit.localBranchesView",
+          "group": "navigation"
+        },
+        {
+          "command": "gitToolkit.showLocalList",
+          "when": "view == gitToolkit.localBranchesView && gitToolkit.localLayout == tree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitToolkit.showLocalTree",
+          "when": "view == gitToolkit.localBranchesView && gitToolkit.localLayout == list",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitToolkit.updateAllLocalBranches",
+          "when": "view == gitToolkit.localBranchesView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitToolkit.refreshRemoteBranches",
+          "when": "view == gitToolkit.remoteBranchesView",
+          "group": "navigation"
+        },
+        {
+          "command": "gitToolkit.showRemoteList",
+          "when": "view == gitToolkit.remoteBranchesView && gitToolkit.remoteLayout == tree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitToolkit.showRemoteTree",
+          "when": "view == gitToolkit.remoteBranchesView && gitToolkit.remoteLayout == list",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitToolkit.showFavoriteRemoteBranches",
+          "when": "view == gitToolkit.remoteBranchesView && gitToolkit.remoteScope == all",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitToolkit.showAllRemoteBranches",
+          "when": "view == gitToolkit.remoteBranchesView && gitToolkit.remoteScope == favorites",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "gitToolkit.disableIgnore",
+          "when": "view == gitToolkit.ignoreView && viewItem == gitToolkit.ignore.active",
+          "group": "inline"
+        },
+        {
+          "command": "gitToolkit.enableIgnore",
+          "when": "view == gitToolkit.ignoreView && viewItem == gitToolkit.ignore.disabled",
+          "group": "inline"
+        },
+        {
+          "command": "gitToolkit.deleteIgnore",
+          "when": "view == gitToolkit.ignoreView && (viewItem == gitToolkit.ignore.active || viewItem == gitToolkit.ignore.disabled)",
+          "group": "inline@1"
+        },
+        {
+          "command": "gitToolkit.favoriteRemoteBranch",
+          "when": "view == gitToolkit.remoteBranchesView && viewItem == gitToolkit.remoteBranch",
+          "group": "inline@2"
+        },
+        {
+          "command": "gitToolkit.unfavoriteRemoteBranch",
+          "when": "view == gitToolkit.remoteBranchesView && viewItem == gitToolkit.remoteBranch.favorite",
+          "group": "inline@2"
+        },
+        {
+          "command": "gitToolkit.checkoutRemoteBranch",
+          "when": "view == gitToolkit.remoteBranchesView && (viewItem == gitToolkit.remoteBranch || viewItem == gitToolkit.remoteBranch.favorite)",
+          "group": "inline"
+        },
+        {
+          "command": "gitToolkit.fetchRemote",
+          "when": "view == gitToolkit.remoteBranchesView && viewItem == gitToolkit.remoteGroup",
+          "group": "inline"
+        },
+        {
+          "command": "gitToolkit.pullLocalBranch",
+          "when": "view == gitToolkit.localBranchesView && viewItem =~ /^gitToolkit\\.localBranch\\.withUpstream\\.(behind|synced|none)\\./",
+          "group": "inline@1"
+        },
+        {
+          "command": "gitToolkit.pushLocalBranch",
+          "when": "view == gitToolkit.localBranchesView && viewItem =~ /^gitToolkit\\.localBranch\\.withUpstream\\.(ahead|diverged)\\./",
+          "group": "inline@1"
+        },
+        {
+          "command": "gitToolkit.checkoutLocalBranch",
+          "when": "view == gitToolkit.localBranchesView && viewItem =~ /^gitToolkit\\.localBranch\\./",
+          "group": "inline"
+        },
+        {
+          "command": "gitToolkit.mergeLocalBranchIntoCurrent",
+          "when": "view == gitToolkit.localBranchesView && viewItem =~ /^gitToolkit\\.localBranch\\./",
+          "group": "1_gitToolkit@1"
+        },
+        {
+          "command": "gitToolkit.rebaseCurrentOntoLocalBranch",
+          "when": "view == gitToolkit.localBranchesView && viewItem =~ /^gitToolkit\\.localBranch\\./",
+          "group": "1_gitToolkit@2"
+        },
+        {
+          "command": "gitToolkit.forcePushLocalBranch",
+          "when": "view == gitToolkit.localBranchesView && viewItem =~ /^gitToolkit\\.localBranch\\.withUpstream\\./",
+          "group": "1_gitToolkit@3"
+        },
+        {
+          "command": "gitToolkit.favoriteUpstreamBranch",
+          "when": "view == gitToolkit.localBranchesView && viewItem =~ /^gitToolkit\\.localBranch\\.withUpstream\\./",
+          "group": "1_gitToolkit@4"
+        },
+        {
+          "command": "gitToolkit.copyLocalBranchName",
+          "when": "view == gitToolkit.localBranchesView && viewItem =~ /^gitToolkit\\.localBranch\\./",
+          "group": "3_copy@1"
+        },
+        {
+          "command": "gitToolkit.copySwimlaneInfo",
+          "when": "view == gitToolkit.localBranchesView && viewItem =~ /^gitToolkit\\.localBranch\\./",
+          "group": "3_copy@2"
+        },
+        {
+          "command": "gitToolkit.rebaseCurrentOntoRemoteBranch",
+          "when": "view == gitToolkit.remoteBranchesView && (viewItem == gitToolkit.remoteBranch || viewItem == gitToolkit.remoteBranch.favorite)",
+          "group": "1_gitToolkit"
+        },
+        {
+          "command": "gitToolkit.renameLocalBranch",
+          "when": "view == gitToolkit.localBranchesView && viewItem =~ /^gitToolkit\\.localBranch\\./",
+          "group": "2_manage@1"
+        },
+        {
+          "command": "gitToolkit.deleteLocalBranch",
+          "when": "view == gitToolkit.localBranchesView && viewItem =~ /^gitToolkit\\.localBranch\\..*\\.other$/",
+          "group": "2_manage@2"
+        },
+        {
+          "command": "gitToolkit.forceDeleteLocalBranch",
+          "when": "view == gitToolkit.localBranchesView && viewItem =~ /^gitToolkit\\.localBranch\\..*\\.other$/",
+          "group": "2_manage@3"
+        },
+        {
+          "command": "gitToolkit.deleteRemoteBranch",
+          "when": "view == gitToolkit.remoteBranchesView && (viewItem == gitToolkit.remoteBranch || viewItem == gitToolkit.remoteBranch.favorite)",
+          "group": "2_manage"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run compile",
+    "clean": "node -e \"require('fs').rmSync('out',{recursive:true,force:true})\"",
+    "compile": "pnpm run clean && tsc -p ./",
+    "test": "pnpm run compile && node --test out/test/**/*.test.js",
+    "package": "mkdir -p release && pnpm dlx @vscode/vsce package -o \"release/${npm_package_name}-${npm_package_version}.vsix\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/vscode": "1.107.0",
+    "typescript": "^5.5.4"
+  }
+}
