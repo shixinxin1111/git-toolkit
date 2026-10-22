@@ -1,0 +1,64 @@
+.gitignore
+  h_acfcfe3f1aa445 1-5
+LICENSE
+  h_acfcfe3f1aa445 1-21
+README.md
+  h_acfcfe3f1aa445 1-84
+package.json
+  h_acfcfe3f1aa445 1-444
+pnpm-lock.yaml
+  h_acfcfe3f1aa445 1-47
+resources/git-toolkit.svg
+  h_acfcfe3f1aa445 1-8
+resources/icons/branch-ahead.svg
+  h_acfcfe3f1aa445 1-8
+resources/icons/branch-behind.svg
+  h_acfcfe3f1aa445 1-8
+resources/icons/branch-dark.svg
+  h_acfcfe3f1aa445 1-8
+resources/icons/branch-diverged.svg
+  h_acfcfe3f1aa445 1-8
+resources/icons/branch-light.svg
+  h_acfcfe3f1aa445 1-8
+resources/icons/current-ahead.svg
+  h_acfcfe3f1aa445 1-6
+resources/icons/current-behind.svg
+  h_acfcfe3f1aa445 1-6
+resources/icons/current-dark.svg
+  h_acfcfe3f1aa445 1-6
+resources/icons/current-diverged.svg
+  h_acfcfe3f1aa445 1-6
+resources/icons/current-light.svg
+  h_acfcfe3f1aa445 1-6
+src/branches.ts
+  h_acfcfe3f1aa445 1-195
+src/extension.ts
+  h_acfcfe3f1aa445 1-910
+src/git.ts
+  h_acfcfe3f1aa445 1-464
+src/records.ts
+  h_acfcfe3f1aa445 1-72
+src/treeViews.ts
+  h_acfcfe3f1aa445 1-792
+test/branches.test.ts
+  h_acfcfe3f1aa445 1-141
+test/git.test.ts
+  h_acfcfe3f1aa445 1-221
+test/records.test.ts
+  h_acfcfe3f1aa445 1-100
+tsconfig.json
+  h_acfcfe3f1aa445 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "0c7166544dfbc38216e753a4947af9f7c6bb1fc7",
+  "prompts": {},
+  "humans": {
+    "h_acfcfe3f1aa445": {
+      "author": "shixinxin.star <shixinxin.star@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
