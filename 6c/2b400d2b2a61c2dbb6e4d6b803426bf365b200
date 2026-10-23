@@ -1,0 +1,24 @@
+src/extension.ts
+  ea05f62cb31ed1f9 157-162,261,281-286,343,363,385,397-402,418,453,465,467,496,509,543,545,565,567,588,590,690
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "6c2b400d2b2a61c2dbb6e4d6b803426bf365b200",
+  "prompts": {
+    "ea05f62cb31ed1f9": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6ad9cc6a8a398e32a43cf3b6",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "shixinxin.star <shixinxin.star@bytedance.com>",
+      "total_additions": 35,
+      "total_deletions": 52,
+      "accepted_lines": 35,
+      "overriden_lines": 0
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
