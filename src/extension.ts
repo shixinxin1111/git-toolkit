@@ -154,11 +154,12 @@ export function activate(context: vscode.ExtensionContext): void {
             gitFile.relativePath,
           );
 
-          vscode.window.showInformationMessage(
-            existing?.active
-              ? "该文件已处于本地忽略状态。"
-              : "已在本机忽略该文件的后续修改。",
-          );
+          if (existing?.active) {
+            vscode.window.setStatusBarMessage(
+              "该文件已处于本地忽略状态。",
+              1500,
+            );
+          }
         } catch (error) {
           showGitError("无法忽略该文件", error);
         }
@@ -257,7 +258,7 @@ export function activate(context: vscode.ExtensionContext): void {
         const repositories = await getWorkspaceRepositories();
         const summary = await vscode.window.withProgress(
           {
-            location: vscode.ProgressLocation.Notification,
+            location: vscode.ProgressLocation.Window,
             title: "正在更新所有本地分支",
           },
           async () => {
@@ -277,9 +278,12 @@ export function activate(context: vscode.ExtensionContext): void {
         );
         localBranchProvider.refresh();
         remoteBranchProvider.refresh();
-        vscode.window.showInformationMessage(
-          `本地分支更新完成：更新 ${summary.updated} 个，跳过 ${summary.skipped} 个，失败 ${summary.failed} 个。`,
-        );
+        const message = `本地分支更新完成：更新 ${summary.updated} 个，跳过 ${summary.skipped} 个，失败 ${summary.failed} 个。`;
+        if (summary.failed > 0) {
+          vscode.window.showWarningMessage(message);
+        } else {
+          vscode.window.setStatusBarMessage(message, 3000);
+        }
       },
     ),
     vscode.commands.registerCommand(
@@ -336,15 +340,12 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          const localBranch = await checkoutRemoteBranch(
+          await checkoutRemoteBranch(
             branch.repositoryRoot,
             branch.name,
           );
           localBranchProvider.refresh();
           remoteBranchProvider.refresh();
-          vscode.window.showInformationMessage(
-            `已检出本地分支“${localBranch}”。`,
-          );
         } catch (error) {
           showGitError("无法检出远程分支", error);
         }
@@ -359,16 +360,13 @@ export function activate(context: vscode.ExtensionContext): void {
         try {
           await vscode.window.withProgress(
             {
-              location: vscode.ProgressLocation.Notification,
+              location: vscode.ProgressLocation.Window,
               title: `正在获取远程 ${item.group.name}`,
             },
             () => fetchRemote(item.repositoryRoot, item.group.name),
           );
           localBranchProvider.refresh();
           remoteBranchProvider.refresh();
-          vscode.window.showInformationMessage(
-            `远程“${item.group.name}”已更新。`,
-          );
         } catch (error) {
           showGitError(`无法获取远程“${item.group.name}”`, error);
         }
@@ -384,7 +382,7 @@ export function activate(context: vscode.ExtensionContext): void {
         try {
           const result = await vscode.window.withProgress(
             {
-              location: vscode.ProgressLocation.Notification,
+              location: vscode.ProgressLocation.Window,
               title: `正在拉取分支 ${branch.name}`,
             },
             () =>
@@ -396,11 +394,12 @@ export function activate(context: vscode.ExtensionContext): void {
           );
           localBranchProvider.refresh();
           remoteBranchProvider.refresh();
-          vscode.window.showInformationMessage(
-            result === "updated"
-              ? `分支“${branch.name}”已更新。`
-              : `分支“${branch.name}”已经是最新状态。`,
-          );
+          if (result === "unchanged") {
+            vscode.window.setStatusBarMessage(
+              `分支“${branch.name}”已经是最新状态。`,
+              2000,
+            );
+          }
         } catch (error) {
           showGitError(`无法拉取分支“${branch.name}”`, error);
         }
@@ -416,7 +415,7 @@ export function activate(context: vscode.ExtensionContext): void {
         try {
           await vscode.window.withProgress(
             {
-              location: vscode.ProgressLocation.Notification,
+              location: vscode.ProgressLocation.Window,
               title: `正在推送分支 ${branch.name}`,
             },
             () =>
@@ -428,9 +427,6 @@ export function activate(context: vscode.ExtensionContext): void {
           );
           localBranchProvider.refresh();
           remoteBranchProvider.refresh();
-          vscode.window.showInformationMessage(
-            `分支“${branch.name}”已推送。`,
-          );
         } catch (error) {
           showGitError(`无法推送分支“${branch.name}”`, error);
         }
@@ -454,7 +450,7 @@ export function activate(context: vscode.ExtensionContext): void {
         try {
           await vscode.window.withProgress(
             {
-              location: vscode.ProgressLocation.Notification,
+              location: vscode.ProgressLocation.Window,
               title: `正在强制推送 ${branch.name}`,
             },
             () =>
@@ -466,8 +462,9 @@ export function activate(context: vscode.ExtensionContext): void {
           );
           localBranchProvider.refresh();
           remoteBranchProvider.refresh();
-          vscode.window.showInformationMessage(
+          vscode.window.setStatusBarMessage(
             `分支“${branch.name}”已强制推送。`,
+            2000,
           );
         } catch (error) {
           showGitError(`无法强制推送“${branch.name}”`, error);
@@ -486,9 +483,6 @@ export function activate(context: vscode.ExtensionContext): void {
           branch.upstream,
           true,
         );
-        vscode.window.showInformationMessage(
-          `已收藏远程分支“${branch.upstream}”。`,
-        );
       },
     ),
     vscode.commands.registerCommand(
@@ -499,7 +493,7 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         await vscode.env.clipboard.writeText(branchName);
-        vscode.window.showInformationMessage("已复制分支名。");
+        vscode.window.setStatusBarMessage("已复制分支名。", 1500);
       },
     ),
     vscode.commands.registerCommand(
@@ -512,7 +506,7 @@ export function activate(context: vscode.ExtensionContext): void {
         await vscode.env.clipboard.writeText(
           createSwimlaneInfo(branchName),
         );
-        vscode.window.showInformationMessage("已复制泳道信息。");
+        vscode.window.setStatusBarMessage("已复制泳道信息。", 1500);
       },
     ),
     vscode.commands.registerCommand(
@@ -528,9 +522,6 @@ export function activate(context: vscode.ExtensionContext): void {
             branch.name,
           );
           localBranchProvider.refresh();
-          vscode.window.showInformationMessage(
-            `已切换到分支“${branch.name}”。`,
-          );
         } catch (error) {
           showGitError(`无法检出分支“${branch.name}”`, error);
         }
@@ -549,8 +540,9 @@ export function activate(context: vscode.ExtensionContext): void {
             branch.name,
           );
           localBranchProvider.refresh();
-          vscode.window.showInformationMessage(
+          vscode.window.setStatusBarMessage(
             `已合并分支“${branch.name}”。`,
+            2000,
           );
         } catch (error) {
           showGitError(`无法合并分支“${branch.name}”`, error);
@@ -570,8 +562,9 @@ export function activate(context: vscode.ExtensionContext): void {
             branch.name,
           );
           localBranchProvider.refresh();
-          vscode.window.showInformationMessage(
+          vscode.window.setStatusBarMessage(
             `已变基到分支“${branch.name}”。`,
+            2000,
           );
         } catch (error) {
           showGitError(`无法变基到分支“${branch.name}”`, error);
@@ -592,8 +585,9 @@ export function activate(context: vscode.ExtensionContext): void {
           );
           localBranchProvider.refresh();
           remoteBranchProvider.refresh();
-          vscode.window.showInformationMessage(
+          vscode.window.setStatusBarMessage(
             `已变基到分支“${branch.name}”。`,
+            2000,
           );
         } catch (error) {
           showGitError(`无法变基到分支“${branch.name}”`, error);
@@ -624,9 +618,6 @@ export function activate(context: vscode.ExtensionContext): void {
             nextName.trim(),
           );
           localBranchProvider.refresh();
-          vscode.window.showInformationMessage(
-            `已重命名为“${nextName.trim()}”。`,
-          );
         } catch (error) {
           showGitError(`无法重命名分支“${branch.name}”`, error);
         }
@@ -637,14 +628,6 @@ export function activate(context: vscode.ExtensionContext): void {
       async (item?: LocalBranchTreeItem) => {
         const branch = item?.branch;
         if (!branch) {
-          return;
-        }
-        const confirmed = await vscode.window.showWarningMessage(
-          `确定删除本地分支“${branch.name}”吗？未合并的分支不会被删除。`,
-          { modal: true },
-          "删除",
-        );
-        if (confirmed !== "删除") {
           return;
         }
         try {
@@ -704,7 +687,7 @@ export function activate(context: vscode.ExtensionContext): void {
         try {
           await vscode.window.withProgress(
             {
-              location: vscode.ProgressLocation.Notification,
+              location: vscode.ProgressLocation.Window,
               title: `正在删除 ${branch.name}`,
             },
             () =>
