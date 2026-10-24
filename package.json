@@ -2,7 +2,7 @@
   "name": "vscode-git-toolkit",
   "displayName": "Git 工具箱",
   "description": "在 VS Code 中管理本地忽略、本地分支和线上分支。",
-  "version": "0.3.16",
+  "version": "0.3.17",
   "license": "MIT",
   "publisher": "shixinxin",
   "author": {
