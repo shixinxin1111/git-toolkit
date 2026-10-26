@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import {
   checkoutLocalBranch,
   checkoutRemoteBranch,
+  createLocalBranch,
   deleteLocalBranch,
   discoverRepositories,
   forcePushLocalBranch,
@@ -18,6 +19,7 @@ import {
   pushLocalBranch,
   rebaseCurrentBranchOnto,
   renameLocalBranch,
+  resetCurrentBranchToCommit,
   resolveGitFile,
   setSkipWorktree,
 } from "../src/git";
@@ -56,6 +58,51 @@ test("skip-worktree hides changes until the record is disabled", async () => {
 
     await setSkipWorktree(repositoryRoot, "tracked.txt", false);
     assert.match(await gitStatus(repositoryRoot), /tracked\.txt/);
+  } finally {
+    await removeTestRepository(repositoryRoot);
+  }
+});
+
+test("resets the current branch to a commit in mixed mode", async () => {
+  const repositoryRoot = await mkdtemp(
+    path.join(tmpdir(), "git-toolkit-"),
+  );
+  const filePath = path.join(repositoryRoot, "tracked.txt");
+
+  try {
+    await runGit(repositoryRoot, ["init"]);
+    await writeFile(filePath, "first\n");
+    await runGit(repositoryRoot, ["add", "tracked.txt"]);
+    await runGit(repositoryRoot, [
+      "-c",
+      "user.name=Git Toolkit Test",
+      "-c",
+      "user.email=test@example.com",
+      "commit",
+      "-m",
+      "First commit",
+    ]);
+    const firstCommit = await runGit(repositoryRoot, ["rev-parse", "HEAD"]);
+
+    await writeFile(filePath, "second\n");
+    await runGit(repositoryRoot, ["add", "tracked.txt"]);
+    await runGit(repositoryRoot, [
+      "-c",
+      "user.name=Git Toolkit Test",
+      "-c",
+      "user.email=test@example.com",
+      "commit",
+      "-m",
+      "Second commit",
+    ]);
+
+    await resetCurrentBranchToCommit(repositoryRoot, firstCommit);
+
+    assert.equal(
+      await runGit(repositoryRoot, ["rev-parse", "HEAD"]),
+      firstCommit,
+    );
+    assert.equal(await gitStatus(repositoryRoot), "M tracked.txt");
   } finally {
     await removeTestRepository(repositoryRoot);
   }
@@ -145,6 +192,22 @@ test("lists local and remote branches from a repository", async () => {
 
     await mergeBranchIntoCurrent(repositoryRoot, "feature/test");
     await rebaseCurrentBranchOnto(repositoryRoot, "feature/test");
+
+    await createLocalBranch(
+      repositoryRoot,
+      "feature/test",
+      "feature/created",
+    );
+    assert.equal(
+      await runGit(repositoryRoot, ["rev-parse", "feature/created"]),
+      await runGit(repositoryRoot, ["rev-parse", "feature/test"]),
+    );
+    assert.equal(
+      await runGit(repositoryRoot, ["branch", "--show-current"]),
+      "feature/created",
+    );
+    await checkoutLocalBranch(repositoryRoot, currentBranch);
+    await deleteLocalBranch(repositoryRoot, "feature/created", false);
 
     await renameLocalBranch(
       repositoryRoot,

@@ -246,8 +246,12 @@ export class RemoteBranchTreeItem extends vscode.TreeItem {
   }
 }
 
-class CommitTreeItem extends vscode.TreeItem {
-  constructor(commit: GitCommit, branchId: string) {
+export class CommitTreeItem extends vscode.TreeItem {
+  constructor(
+    public readonly commit: GitCommit,
+    public readonly repositoryRoot: string,
+    branchId: string,
+  ) {
     super(commit.subject, vscode.TreeItemCollapsibleState.None);
     this.id = `${branchId}\0${commit.hash}`;
     this.description = `${commit.shortHash} · ${commit.author} · ${formatRelativeTime(commit.committedAt)}`;
@@ -304,7 +308,14 @@ abstract class BranchHistoryProvider implements vscode.Disposable {
     const hasMore = commits.length > limit;
     const items: vscode.TreeItem[] = commits
       .slice(0, limit)
-      .map((commit) => new CommitTreeItem(commit, branch.branch.id));
+      .map(
+        (commit) =>
+          new CommitTreeItem(
+            commit,
+            branch.branch.repositoryRoot,
+            branch.branch.id,
+          ),
+      );
 
     if (hasMore) {
       items.push(new LoadMoreTreeItem(branch, loadMoreCommand));

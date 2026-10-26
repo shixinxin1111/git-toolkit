@@ -4,6 +4,7 @@ import { createSwimlaneInfo } from "./branches";
 import {
   checkoutLocalBranch,
   checkoutRemoteBranch,
+  createLocalBranch,
   deleteLocalBranch,
   deleteRemoteBranch,
   discoverRepositories,
@@ -14,12 +15,14 @@ import {
   pushLocalBranch,
   rebaseCurrentBranchOnto,
   renameLocalBranch,
+  resetCurrentBranchToCommit,
   resolveGitFile,
   setSkipWorktree,
   updateAllLocalBranches,
 } from "./git";
 import {
   BranchDecorationProvider,
+  CommitTreeItem,
   createBranchIconSet,
   IgnoreTreeItem,
   IgnoreTreeProvider,
@@ -528,6 +531,39 @@ export function activate(context: vscode.ExtensionContext): void {
       },
     ),
     vscode.commands.registerCommand(
+      "gitToolkit.createLocalBranch",
+      async (item?: LocalBranchTreeItem) => {
+        const sourceBranch = item?.branch;
+        if (!sourceBranch) {
+          return;
+        }
+        const branchName = await vscode.window.showInputBox({
+          title: `基于“${sourceBranch.name}”创建分支`,
+          prompt: "输入新分支名",
+          placeHolder: "例如：feature/new-feature",
+          validateInput: (value) =>
+            value.trim() ? undefined : "分支名不能为空",
+        });
+        if (!branchName) {
+          return;
+        }
+        try {
+          await createLocalBranch(
+            sourceBranch.repositoryRoot,
+            sourceBranch.name,
+            branchName.trim(),
+          );
+          localBranchProvider.refresh();
+          vscode.window.setStatusBarMessage(
+            `已创建并检出分支“${branchName.trim()}”。`,
+            2000,
+          );
+        } catch (error) {
+          showGitError(`无法创建分支“${branchName.trim()}”`, error);
+        }
+      },
+    ),
+    vscode.commands.registerCommand(
       "gitToolkit.mergeLocalBranchIntoCurrent",
       async (item?: LocalBranchTreeItem) => {
         const branch = item?.branch;
@@ -591,6 +627,31 @@ export function activate(context: vscode.ExtensionContext): void {
           );
         } catch (error) {
           showGitError(`无法变基到分支“${branch.name}”`, error);
+        }
+      },
+    ),
+    vscode.commands.registerCommand(
+      "gitToolkit.resetToCommit",
+      async (item?: CommitTreeItem) => {
+        if (!item?.commit) {
+          return;
+        }
+        try {
+          await resetCurrentBranchToCommit(
+            item.repositoryRoot,
+            item.commit.hash,
+          );
+          localBranchProvider.refresh();
+          remoteBranchProvider.refresh();
+          vscode.window.setStatusBarMessage(
+            `已重置到提交 ${item.commit.shortHash}（Mixed）。`,
+            2000,
+          );
+        } catch (error) {
+          showGitError(
+            `无法重置到提交 ${item.commit.shortHash}`,
+            error,
+          );
         }
       },
     ),

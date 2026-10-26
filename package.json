@@ -2,7 +2,7 @@
   "name": "vscode-git-toolkit",
   "displayName": "Git 工具箱",
   "description": "在 VS Code 中管理本地忽略、本地分支和线上分支。",
-  "version": "0.3.17",
+  "version": "0.3.19",
   "license": "MIT",
   "publisher": "shixinxin",
   "author": {
@@ -208,6 +208,11 @@
         "icon": "$(indent)"
       },
       {
+        "command": "gitToolkit.createLocalBranch",
+        "title": "基于此分支创建分支",
+        "icon": "$(git-branch)"
+      },
+      {
         "command": "gitToolkit.renameLocalBranch",
         "title": "重命名分支",
         "icon": "$(edit)"
@@ -241,6 +246,11 @@
         "command": "gitToolkit.rebaseCurrentOntoRemoteBranch",
         "title": "将当前分支变基到分支",
         "icon": "$(git-compare)"
+      },
+      {
+        "command": "gitToolkit.resetToCommit",
+        "title": "重置到此提交（Mixed）",
+        "icon": "$(discard)"
       }
     ],
     "menus": {
@@ -382,14 +392,19 @@
           "group": "1_gitToolkit@2"
         },
         {
+          "command": "gitToolkit.createLocalBranch",
+          "when": "view == gitToolkit.localBranchesView && viewItem =~ /^gitToolkit\\.localBranch\\./",
+          "group": "1_gitToolkit@3"
+        },
+        {
           "command": "gitToolkit.forcePushLocalBranch",
           "when": "view == gitToolkit.localBranchesView && viewItem =~ /^gitToolkit\\.localBranch\\.withUpstream\\./",
-          "group": "1_gitToolkit@3"
+          "group": "1_gitToolkit@4"
         },
         {
           "command": "gitToolkit.favoriteUpstreamBranch",
           "when": "view == gitToolkit.localBranchesView && viewItem =~ /^gitToolkit\\.localBranch\\.withUpstream\\./",
-          "group": "1_gitToolkit@4"
+          "group": "1_gitToolkit@5"
         },
         {
           "command": "gitToolkit.copyLocalBranchName",
@@ -425,6 +440,11 @@
           "command": "gitToolkit.deleteRemoteBranch",
           "when": "view == gitToolkit.remoteBranchesView && (viewItem == gitToolkit.remoteBranch || viewItem == gitToolkit.remoteBranch.favorite)",
           "group": "2_manage"
+        },
+        {
+          "command": "gitToolkit.resetToCommit",
+          "when": "(view == gitToolkit.localBranchesView || view == gitToolkit.remoteBranchesView) && viewItem == gitToolkit.commit",
+          "group": "1_gitToolkit"
         }
       ]
     }

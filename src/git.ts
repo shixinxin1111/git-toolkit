@@ -269,6 +269,19 @@ export async function checkoutLocalBranch(
   await runGit(repositoryRoot, ["checkout", branch]);
 }
 
+export async function createLocalBranch(
+  repositoryRoot: string,
+  sourceBranch: string,
+  branch: string,
+): Promise<void> {
+  await runGit(repositoryRoot, [
+    "checkout",
+    "-b",
+    branch,
+    sourceBranch,
+  ]);
+}
+
 export async function renameLocalBranch(
   repositoryRoot: string,
   branch: string,
@@ -314,6 +327,13 @@ export async function rebaseCurrentBranchOnto(
   branch: string,
 ): Promise<void> {
   await runGit(repositoryRoot, ["rebase", branch]);
+}
+
+export async function resetCurrentBranchToCommit(
+  repositoryRoot: string,
+  commit: string,
+): Promise<void> {
+  await runGit(repositoryRoot, ["reset", "--mixed", commit]);
 }
 
 export async function pullLocalBranch(
