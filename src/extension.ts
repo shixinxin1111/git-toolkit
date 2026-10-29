@@ -10,8 +10,12 @@ import {
   discoverRepositories,
   fetchRemote,
   forcePushLocalBranch,
+  GitResetMode,
+  listLocalBranches,
+  listRemotes,
   mergeBranchIntoCurrent,
   pullLocalBranch,
+  publishLocalBranch,
   pushLocalBranch,
   rebaseCurrentBranchOnto,
   renameLocalBranch,
@@ -147,14 +151,19 @@ export function activate(context: vscode.ExtensionContext): void {
                 record.relativePath === gitFile.relativePath,
             );
 
-          await setSkipWorktree(
-            gitFile.repositoryRoot,
-            gitFile.relativePath,
-            true,
-          );
-          await ignoreProvider.addOrEnable(
-            gitFile.repositoryRoot,
-            gitFile.relativePath,
+          await withGitProgress(
+            `正在忽略 ${gitFile.relativePath}...`,
+            async () => {
+              await setSkipWorktree(
+                gitFile.repositoryRoot,
+                gitFile.relativePath,
+                true,
+              );
+              await ignoreProvider.addOrEnable(
+                gitFile.repositoryRoot,
+                gitFile.relativePath,
+              );
+            },
           );
 
           if (existing?.active) {
@@ -183,12 +192,17 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await setSkipWorktree(
-            record.repositoryRoot,
-            record.relativePath,
-            false,
+          await withGitProgress(
+            `正在取消忽略 ${record.relativePath}...`,
+            async () => {
+              await setSkipWorktree(
+                record.repositoryRoot,
+                record.relativePath,
+                false,
+              );
+              await ignoreProvider.disable(record.id);
+            },
           );
-          await ignoreProvider.disable(record.id);
         } catch (error) {
           showGitError("无法取消忽略", error);
         }
@@ -205,14 +219,19 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await setSkipWorktree(
-            record.repositoryRoot,
-            record.relativePath,
-            true,
-          );
-          await ignoreProvider.addOrEnable(
-            record.repositoryRoot,
-            record.relativePath,
+          await withGitProgress(
+            `正在重新忽略 ${record.relativePath}...`,
+            async () => {
+              await setSkipWorktree(
+                record.repositoryRoot,
+                record.relativePath,
+                true,
+              );
+              await ignoreProvider.addOrEnable(
+                record.repositoryRoot,
+                record.relativePath,
+              );
+            },
           );
         } catch (error) {
           showGitError("无法重新添加忽略", error);
@@ -227,12 +246,17 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await setSkipWorktree(
-            record.repositoryRoot,
-            record.relativePath,
-            false,
+          await withGitProgress(
+            `正在删除忽略记录 ${record.relativePath}...`,
+            async () => {
+              await setSkipWorktree(
+                record.repositoryRoot,
+                record.relativePath,
+                false,
+              );
+              await ignoreProvider.remove(record.id);
+            },
           );
-          await ignoreProvider.remove(record.id);
         } catch (error) {
           showGitError("无法删除记录", error);
         }
@@ -259,11 +283,8 @@ export function activate(context: vscode.ExtensionContext): void {
       "gitToolkit.updateAllLocalBranches",
       async () => {
         const repositories = await getWorkspaceRepositories();
-        const summary = await vscode.window.withProgress(
-          {
-            location: vscode.ProgressLocation.Window,
-            title: "正在更新所有本地分支",
-          },
+        const summary = await withGitProgress(
+          "正在更新所有本地分支...",
           async () => {
             const total = { updated: 0, skipped: 0, failed: 0 };
             for (const repository of repositories) {
@@ -343,9 +364,13 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await checkoutRemoteBranch(
-            branch.repositoryRoot,
-            branch.name,
+          await withGitProgress(
+            `正在检出远程分支 ${branch.name}...`,
+            () =>
+              checkoutRemoteBranch(
+                branch.repositoryRoot,
+                branch.name,
+              ),
           );
           localBranchProvider.refresh();
           remoteBranchProvider.refresh();
@@ -361,11 +386,8 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await vscode.window.withProgress(
-            {
-              location: vscode.ProgressLocation.Window,
-              title: `正在获取远程 ${item.group.name}`,
-            },
+          await withGitProgress(
+            `正在获取远程 ${item.group.name}...`,
             () => fetchRemote(item.repositoryRoot, item.group.name),
           );
           localBranchProvider.refresh();
@@ -383,11 +405,8 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          const result = await vscode.window.withProgress(
-            {
-              location: vscode.ProgressLocation.Window,
-              title: `正在拉取分支 ${branch.name}`,
-            },
+          const result = await withGitProgress(
+            `正在拉取分支 ${branch.name}...`,
             () =>
               pullLocalBranch(
                 branch.repositoryRoot,
@@ -409,6 +428,57 @@ export function activate(context: vscode.ExtensionContext): void {
       },
     ),
     vscode.commands.registerCommand(
+      "gitToolkit.publishLocalBranch",
+      async (item?: LocalBranchTreeItem) => {
+        const branch = item?.branch;
+        if (!branch || branch.upstream) {
+          return;
+        }
+        try {
+          const remotes = await listRemotes(branch.repositoryRoot);
+          if (remotes.length === 0) {
+            throw new Error("当前仓库没有配置远程仓库。");
+          }
+
+          let remote = remotes[0];
+          if (remotes.length > 1) {
+            const selected = await vscode.window.showQuickPick(
+              remotes.map((name) => ({
+                label: name,
+                description: `发布 ${branch.name}`,
+              })),
+              {
+                title: `发布分支 ${branch.name}`,
+                placeHolder: "选择远程仓库",
+              },
+            );
+            if (!selected) {
+              return;
+            }
+            remote = selected.label;
+          }
+
+          await withGitProgress(
+            `正在发布分支 ${branch.name}...`,
+            () =>
+              publishLocalBranch(
+                branch.repositoryRoot,
+                branch.name,
+                remote,
+              ),
+          );
+          localBranchProvider.refresh();
+          remoteBranchProvider.refresh();
+          vscode.window.setStatusBarMessage(
+            `分支“${branch.name}”已发布到 ${remote}。`,
+            2000,
+          );
+        } catch (error) {
+          showGitError(`无法发布分支“${branch.name}”`, error);
+        }
+      },
+    ),
+    vscode.commands.registerCommand(
       "gitToolkit.pushLocalBranch",
       async (item?: LocalBranchTreeItem) => {
         const branch = item?.branch;
@@ -416,11 +486,8 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await vscode.window.withProgress(
-            {
-              location: vscode.ProgressLocation.Window,
-              title: `正在推送分支 ${branch.name}`,
-            },
+          await withGitProgress(
+            `正在推送分支 ${branch.name}...`,
             () =>
               pushLocalBranch(
                 branch.repositoryRoot,
@@ -451,11 +518,8 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await vscode.window.withProgress(
-            {
-              location: vscode.ProgressLocation.Window,
-              title: `正在强制推送 ${branch.name}`,
-            },
+          await withGitProgress(
+            `正在强制推送 ${branch.name}...`,
             () =>
               forcePushLocalBranch(
                 branch.repositoryRoot,
@@ -520,9 +584,13 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await checkoutLocalBranch(
-            branch.repositoryRoot,
-            branch.name,
+          await withGitProgress(
+            `正在检出分支 ${branch.name}...`,
+            () =>
+              checkoutLocalBranch(
+                branch.repositoryRoot,
+                branch.name,
+              ),
           );
           localBranchProvider.refresh();
         } catch (error) {
@@ -548,10 +616,14 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await createLocalBranch(
-            sourceBranch.repositoryRoot,
-            sourceBranch.name,
-            branchName.trim(),
+          await withGitProgress(
+            `正在创建分支 ${branchName.trim()}...`,
+            () =>
+              createLocalBranch(
+                sourceBranch.repositoryRoot,
+                sourceBranch.name,
+                branchName.trim(),
+              ),
           );
           localBranchProvider.refresh();
           vscode.window.setStatusBarMessage(
@@ -571,9 +643,13 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await mergeBranchIntoCurrent(
-            branch.repositoryRoot,
-            branch.name,
+          await withGitProgress(
+            `正在合并分支 ${branch.name}...`,
+            () =>
+              mergeBranchIntoCurrent(
+                branch.repositoryRoot,
+                branch.name,
+              ),
           );
           localBranchProvider.refresh();
           vscode.window.setStatusBarMessage(
@@ -593,9 +669,13 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await rebaseCurrentBranchOnto(
-            branch.repositoryRoot,
-            branch.name,
+          await withGitProgress(
+            `正在变基到分支 ${branch.name}...`,
+            () =>
+              rebaseCurrentBranchOnto(
+                branch.repositoryRoot,
+                branch.name,
+              ),
           );
           localBranchProvider.refresh();
           vscode.window.setStatusBarMessage(
@@ -615,9 +695,13 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await rebaseCurrentBranchOnto(
-            branch.repositoryRoot,
-            branch.name,
+          await withGitProgress(
+            `正在变基到远程分支 ${branch.name}...`,
+            () =>
+              rebaseCurrentBranchOnto(
+                branch.repositoryRoot,
+                branch.name,
+              ),
           );
           localBranchProvider.refresh();
           remoteBranchProvider.refresh();
@@ -637,14 +721,65 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await resetCurrentBranchToCommit(
-            item.repositoryRoot,
-            item.commit.hash,
+          const currentBranch =
+            (await listLocalBranches(item.repositoryRoot)).find(
+              (branch) => branch.current,
+            )?.name ?? "当前 HEAD";
+          const target = `${item.commit.shortHash} (${item.commit.subject})`;
+          const resetOptions: Array<
+            vscode.QuickPickItem & { mode?: GitResetMode }
+          > = [
+            {
+              label: "重置",
+              description: "--mixed · 保留工作区更改，取消暂存更改",
+              detail: `将取消暂存更改，并将分支 ${currentBranch} 重置到提交 ${target}`,
+              mode: "mixed",
+            },
+            {
+              label: "软重置",
+              description: "--soft · 保留工作区更改，并暂存重置产生的更改",
+              detail: `将保留并暂存更改，并将分支 ${currentBranch} 重置到提交 ${target}`,
+              mode: "soft",
+            },
+            {
+              label: "安全硬重置",
+              description: "--keep · 保留工作区更改；若会覆盖则中止",
+              detail: `将安全地把分支 ${currentBranch} 重置到提交 ${target}`,
+              mode: "keep",
+            },
+            {
+              label: "$(warning) 硬重置",
+              description: "--hard · 放弃所有已跟踪文件的本地更改",
+              detail: `将放弃本地更改，并将分支 ${currentBranch} 重置到提交 ${target}`,
+              mode: "hard",
+            },
+            {
+              label: "取消",
+            },
+          ];
+          const selected = await vscode.window.showQuickPick(
+            resetOptions,
+            {
+              title: `确认重置分支 ${currentBranch}`,
+              placeHolder: `选择重置到 ${target} 的方式`,
+            },
+          );
+          if (!selected?.mode) {
+            return;
+          }
+          await withGitProgress(
+            `正在重置到提交 ${item.commit.shortHash}...`,
+            () =>
+              resetCurrentBranchToCommit(
+                item.repositoryRoot,
+                item.commit.hash,
+                selected.mode!,
+              ),
           );
           localBranchProvider.refresh();
           remoteBranchProvider.refresh();
           vscode.window.setStatusBarMessage(
-            `已重置到提交 ${item.commit.shortHash}（Mixed）。`,
+            `已通过 --${selected.mode} 重置到提交 ${item.commit.shortHash}。`,
             2000,
           );
         } catch (error) {
@@ -673,10 +808,14 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await renameLocalBranch(
-            branch.repositoryRoot,
-            branch.name,
-            nextName.trim(),
+          await withGitProgress(
+            `正在重命名分支 ${branch.name}...`,
+            () =>
+              renameLocalBranch(
+                branch.repositoryRoot,
+                branch.name,
+                nextName.trim(),
+              ),
           );
           localBranchProvider.refresh();
         } catch (error) {
@@ -692,10 +831,14 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await deleteLocalBranch(
-            branch.repositoryRoot,
-            branch.name,
-            false,
+          await withGitProgress(
+            `正在删除分支 ${branch.name}...`,
+            () =>
+              deleteLocalBranch(
+                branch.repositoryRoot,
+                branch.name,
+                false,
+              ),
           );
           localBranchProvider.refresh();
         } catch (error) {
@@ -719,10 +862,14 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await deleteLocalBranch(
-            branch.repositoryRoot,
-            branch.name,
-            true,
+          await withGitProgress(
+            `正在强制删除分支 ${branch.name}...`,
+            () =>
+              deleteLocalBranch(
+                branch.repositoryRoot,
+                branch.name,
+                true,
+              ),
           );
           localBranchProvider.refresh();
         } catch (error) {
@@ -746,11 +893,8 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         try {
-          await vscode.window.withProgress(
-            {
-              location: vscode.ProgressLocation.Window,
-              title: `正在删除 ${branch.name}`,
-            },
+          await withGitProgress(
+            `正在删除远程分支 ${branch.name}...`,
             () =>
               deleteRemoteBranch(
                 branch.repositoryRoot,
@@ -936,6 +1080,20 @@ function registerGitFileWatchers(
       watcher.onDidDelete(refresh),
     );
   }
+}
+
+async function withGitProgress<T>(
+  title: string,
+  task: () => Promise<T>,
+): Promise<T> {
+  return vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title,
+      cancellable: false,
+    },
+    task,
+  );
 }
 
 function showGitError(prefix: string, error: unknown): void {

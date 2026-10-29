@@ -14,8 +14,10 @@ import {
   forcePushLocalBranch,
   listLocalBranches,
   listBranchCommits,
+  listRemotes,
   listRemoteBranches,
   mergeBranchIntoCurrent,
+  publishLocalBranch,
   pushLocalBranch,
   rebaseCurrentBranchOnto,
   renameLocalBranch,
@@ -96,13 +98,70 @@ test("resets the current branch to a commit in mixed mode", async () => {
       "Second commit",
     ]);
 
-    await resetCurrentBranchToCommit(repositoryRoot, firstCommit);
+    await resetCurrentBranchToCommit(
+      repositoryRoot,
+      firstCommit,
+      "mixed",
+    );
 
     assert.equal(
       await runGit(repositoryRoot, ["rev-parse", "HEAD"]),
       firstCommit,
     );
     assert.equal(await gitStatus(repositoryRoot), "M tracked.txt");
+  } finally {
+    await removeTestRepository(repositoryRoot);
+  }
+});
+
+test("publishes a local branch and configures its upstream", async () => {
+  const repositoryRoot = await mkdtemp(
+    path.join(tmpdir(), "git-toolkit-"),
+  );
+
+  try {
+    await runGit(repositoryRoot, ["init"]);
+    await writeFile(path.join(repositoryRoot, "tracked.txt"), "content\n");
+    await runGit(repositoryRoot, ["add", "tracked.txt"]);
+    await runGit(repositoryRoot, [
+      "-c",
+      "user.name=Git Toolkit Test",
+      "-c",
+      "user.email=test@example.com",
+      "commit",
+      "-m",
+      "Initial commit",
+    ]);
+    const branchName = await runGit(repositoryRoot, [
+      "branch",
+      "--show-current",
+    ]);
+    await runGit(repositoryRoot, ["init", "--bare", "remote.git"]);
+    await runGit(repositoryRoot, [
+      "remote",
+      "add",
+      "origin",
+      "./remote.git",
+    ]);
+
+    assert.deepEqual(await listRemotes(repositoryRoot), ["origin"]);
+    await publishLocalBranch(repositoryRoot, branchName, "origin");
+
+    assert.equal(
+      await runGit(repositoryRoot, [
+        "rev-parse",
+        "--abbrev-ref",
+        `${branchName}@{upstream}`,
+      ]),
+      `origin/${branchName}`,
+    );
+    assert.match(
+      await runGit(path.join(repositoryRoot, "remote.git"), [
+        "show-ref",
+        `refs/heads/${branchName}`,
+      ]),
+      new RegExp(`refs/heads/${branchName}$`),
+    );
   } finally {
     await removeTestRepository(repositoryRoot);
   }

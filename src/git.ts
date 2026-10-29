@@ -34,6 +34,8 @@ export type UpdateLocalBranchesResult = {
   failed: number;
 };
 
+export type GitResetMode = "mixed" | "soft" | "keep" | "hard";
+
 export async function discoverRepositories(
   directories: string[],
 ): Promise<string[]> {
@@ -149,6 +151,13 @@ export async function fetchRemote(
   remote: string,
 ): Promise<void> {
   await runGit(repositoryRoot, ["fetch", remote, "--prune"]);
+}
+
+export async function listRemotes(
+  repositoryRoot: string,
+): Promise<string[]> {
+  const output = await runGit(repositoryRoot, ["remote"]);
+  return output.split("\n").map((remote) => remote.trim()).filter(Boolean);
 }
 
 export async function updateAllLocalBranches(
@@ -332,8 +341,9 @@ export async function rebaseCurrentBranchOnto(
 export async function resetCurrentBranchToCommit(
   repositoryRoot: string,
   commit: string,
+  mode: GitResetMode,
 ): Promise<void> {
-  await runGit(repositoryRoot, ["reset", "--mixed", commit]);
+  await runGit(repositoryRoot, ["reset", `--${mode}`, commit]);
 }
 
 export async function pullLocalBranch(
@@ -396,6 +406,19 @@ export async function pushLocalBranch(
     "push",
     remote,
     `${branchName}:${remoteBranch}`,
+  ]);
+}
+
+export async function publishLocalBranch(
+  repositoryRoot: string,
+  branchName: string,
+  remote: string,
+): Promise<void> {
+  await runGit(repositoryRoot, [
+    "push",
+    "--set-upstream",
+    remote,
+    branchName,
   ]);
 }
 
