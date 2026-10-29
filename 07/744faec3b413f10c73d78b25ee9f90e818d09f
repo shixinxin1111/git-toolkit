@@ -1,0 +1,34 @@
+src/git.ts
+  21fb1c025112e787 37-38,156-162,344,346,412-421,423
+  21fb1c025112e787 422
+  21fb1c025112e787 424
+test/git.test.ts
+  21fb1c025112e787 17,20,101-105,117-164
+  21fb1c025112e787 165-167
+src/extension.ts
+  21fb1c025112e787 13-15,18,154-166,195-204,222-234,249-258,286-287,367-373,389-390,408-409,430-480,489-490,521-522,587-593,619-626,646-652,672-678,698-704,724-777,782,811-818,834-841,865-872,896-897,1085-1098
+package.json
+  21fb1c025112e787 5,180-184,257,379-381
+  21fb1c025112e787 382-383
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "07744faec3b413f10c73d78b25ee9f90e818d09f",
+  "prompts": {
+    "21fb1c025112e787": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6adee80491e970fcf65636bf",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "shixinxin.star <shixinxin.star@bytedance.com>",
+      "total_additions": 353,
+      "total_deletions": 103,
+      "accepted_lines": 345,
+      "overriden_lines": 0
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
