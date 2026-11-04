@@ -18,8 +18,10 @@ import {
 import {
   GitBranch,
   GitCommit,
+  GitCommitChange,
   discoverRepositories,
   listBranchCommits,
+  listCommitChanges,
   listLocalBranches,
   listRemoteBranches,
 } from "./git";
@@ -252,12 +254,34 @@ export class CommitTreeItem extends vscode.TreeItem {
     public readonly repositoryRoot: string,
     branchId: string,
   ) {
-    super(commit.subject, vscode.TreeItemCollapsibleState.None);
+    super(commit.subject, vscode.TreeItemCollapsibleState.Collapsed);
     this.id = `${branchId}\0${commit.hash}`;
     this.description = `${commit.shortHash} · ${commit.author} · ${formatRelativeTime(commit.committedAt)}`;
     this.tooltip = `${commit.subject}\n${commit.hash}\n${commit.author} · ${new Date(commit.committedAt).toLocaleString()}`;
     this.contextValue = "gitToolkit.commit";
     this.iconPath = new vscode.ThemeIcon("git-commit");
+  }
+}
+
+export class CommitChangeTreeItem extends vscode.TreeItem {
+  constructor(
+    public readonly change: GitCommitChange,
+    public readonly commit: GitCommit,
+    public readonly repositoryRoot: string,
+  ) {
+    super(path.basename(change.path), vscode.TreeItemCollapsibleState.None);
+    const directory = path.dirname(change.path);
+    this.description = [directory === "." ? "" : directory, change.status]
+      .filter(Boolean)
+      .join(" · ");
+    this.tooltip = createCommitChangeTooltip(change);
+    this.contextValue = "gitToolkit.commitChange";
+    this.iconPath = getCommitChangeIcon(change.status);
+    this.command = {
+      command: "gitToolkit.openCommitChange",
+      title: "查看提交变更",
+      arguments: [this],
+    };
   }
 }
 
@@ -322,6 +346,23 @@ abstract class BranchHistoryProvider implements vscode.Disposable {
     }
     return items;
   }
+
+  protected async getCommitChangeChildren(
+    item: CommitTreeItem,
+  ): Promise<vscode.TreeItem[]> {
+    const changes = await listCommitChanges(
+      item.repositoryRoot,
+      item.commit.hash,
+    );
+    return changes.map(
+      (change) =>
+        new CommitChangeTreeItem(
+          change,
+          item.commit,
+          item.repositoryRoot,
+        ),
+    );
+  }
 }
 
 export class LocalBranchTreeProvider
@@ -350,6 +391,9 @@ export class LocalBranchTreeProvider
   }
 
   async getChildren(element?: vscode.TreeItem): Promise<vscode.TreeItem[]> {
+    if (element instanceof CommitTreeItem) {
+      return this.getCommitChangeChildren(element);
+    }
     if (
       element instanceof BranchFolderTreeItem &&
       element.scope === "local"
@@ -447,6 +491,9 @@ export class RemoteBranchTreeProvider
   }
 
   async getChildren(element?: vscode.TreeItem): Promise<vscode.TreeItem[]> {
+    if (element instanceof CommitTreeItem) {
+      return this.getCommitChangeChildren(element);
+    }
     if (element instanceof RemoteGroupTreeItem) {
       if (this.getLayout() === "list") {
         return element.group.branches.map(
@@ -587,6 +634,56 @@ export class RemoteBranchTreeProvider
       return new Set();
     }
     return new Set(value.filter((id): id is string => typeof id === "string"));
+  }
+}
+
+function createCommitChangeTooltip(change: GitCommitChange): string {
+  const status = getCommitChangeLabel(change.status);
+  return change.previousPath
+    ? `${status}\n${change.previousPath} → ${change.path}`
+    : `${status}\n${change.path}`;
+}
+
+function getCommitChangeLabel(status: string): string {
+  switch (status) {
+    case "A":
+      return "新增";
+    case "D":
+      return "删除";
+    case "R":
+      return "重命名";
+    case "C":
+      return "复制";
+    case "M":
+      return "修改";
+    default:
+      return "变更";
+  }
+}
+
+function getCommitChangeIcon(status: string): vscode.ThemeIcon {
+  switch (status) {
+    case "A":
+      return new vscode.ThemeIcon(
+        "diff-added",
+        new vscode.ThemeColor("gitDecoration.addedResourceForeground"),
+      );
+    case "D":
+      return new vscode.ThemeIcon(
+        "diff-removed",
+        new vscode.ThemeColor("gitDecoration.deletedResourceForeground"),
+      );
+    case "R":
+    case "C":
+      return new vscode.ThemeIcon(
+        "diff-renamed",
+        new vscode.ThemeColor("gitDecoration.renamedResourceForeground"),
+      );
+    default:
+      return new vscode.ThemeIcon(
+        "diff-modified",
+        new vscode.ThemeColor("gitDecoration.modifiedResourceForeground"),
+      );
   }
 }
 

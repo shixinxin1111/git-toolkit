@@ -1,6 +1,13 @@
 import { promises as fs } from "node:fs";
+import * as path from "node:path";
 import * as vscode from "vscode";
 import { createSwimlaneInfo } from "./branches";
+import {
+  COMMIT_CONTENT_SCHEME,
+  CommitContentProvider,
+  createCommitContentUri,
+} from "./commitDiff";
+import { CurrentLineBlameController } from "./currentLineBlame";
 import {
   checkoutLocalBranch,
   checkoutRemoteBranch,
@@ -26,6 +33,7 @@ import {
 } from "./git";
 import {
   BranchDecorationProvider,
+  CommitChangeTreeItem,
   CommitTreeItem,
   createBranchIconSet,
   IgnoreTreeItem,
@@ -47,6 +55,8 @@ export function activate(context: vscode.ExtensionContext): void {
   let remoteBranchTreeView: vscode.TreeView<vscode.TreeItem> | undefined;
   const branchIcons = createBranchIconSet(context.extensionUri);
   const branchDecorationProvider = new BranchDecorationProvider();
+  const currentLineBlameController = new CurrentLineBlameController();
+  const commitContentProvider = new CommitContentProvider();
 
   const ignoreProvider = new IgnoreTreeProvider(
     context.workspaceState,
@@ -109,11 +119,16 @@ export function activate(context: vscode.ExtensionContext): void {
     localBranchProvider,
     remoteBranchProvider,
     branchDecorationProvider,
+    currentLineBlameController,
     ignoreTreeView,
     localBranchTreeView,
     remoteBranchTreeView,
     vscode.window.registerFileDecorationProvider(
       branchDecorationProvider,
+    ),
+    vscode.workspace.registerTextDocumentContentProvider(
+      COMMIT_CONTENT_SCHEME,
+      commitContentProvider,
     ),
     vscode.window.onDidChangeActiveColorTheme(() => {
       branchDecorationProvider.refresh();
@@ -715,6 +730,35 @@ export function activate(context: vscode.ExtensionContext): void {
       },
     ),
     vscode.commands.registerCommand(
+      "gitToolkit.openCommitChange",
+      async (item?: CommitChangeTreeItem) => {
+        if (!item) {
+          return;
+        }
+        const beforePath = item.change.previousPath ?? item.change.path;
+        const before = createCommitContentUri(
+          item.repositoryRoot,
+          beforePath,
+          item.change.beforeBlob,
+        );
+        const after = createCommitContentUri(
+          item.repositoryRoot,
+          item.change.path,
+          item.change.afterBlob,
+        );
+        const beforeName = path.basename(beforePath);
+        const afterName = path.basename(item.change.path);
+        const title = `${beforeName} (${item.commit.shortHash}^) ↔ ${afterName} (${item.commit.shortHash})`;
+        await vscode.commands.executeCommand(
+          "vscode.diff",
+          before,
+          after,
+          title,
+          { preview: true },
+        );
+      },
+    ),
+    vscode.commands.registerCommand(
       "gitToolkit.resetToCommit",
       async (item?: CommitTreeItem) => {
         if (!item?.commit) {
@@ -933,6 +977,7 @@ export function activate(context: vscode.ExtensionContext): void {
     localBranchProvider.refresh();
     remoteBranchProvider.refresh();
     branchDecorationProvider.refresh();
+    currentLineBlameController.refresh();
   });
 }
 

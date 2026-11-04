@@ -28,6 +28,16 @@ export type GitCommit = {
   committedAt: number;
 };
 
+export type GitLineBlame = GitCommit;
+
+export type GitCommitChange = {
+  status: string;
+  path: string;
+  previousPath?: string;
+  beforeBlob?: string;
+  afterBlob?: string;
+};
+
 export type UpdateLocalBranchesResult = {
   updated: number;
   skipped: number;
@@ -138,6 +148,102 @@ export async function listBranchCommits(
         subject,
       };
     });
+}
+
+export async function getLineBlame(
+  repositoryRoot: string,
+  relativePath: string,
+  line: number,
+): Promise<GitLineBlame | undefined> {
+  const output = await runGit(repositoryRoot, [
+    "blame",
+    "--line-porcelain",
+    `-L${line},${line}`,
+    "--",
+    relativePath,
+  ]);
+  const [header = ""] = output.split("\n", 1);
+  const hash = header.split(" ", 1)[0];
+
+  if (!hash || /^0+$/.test(hash)) {
+    return undefined;
+  }
+
+  const fields = new Map<string, string>();
+  for (const entry of output.split("\n").slice(1)) {
+    const separator = entry.indexOf(" ");
+    if (separator > 0) {
+      fields.set(entry.slice(0, separator), entry.slice(separator + 1));
+    }
+  }
+
+  const author = fields.get("author");
+  const subject = fields.get("summary");
+  const authoredAt = Number(fields.get("author-time"));
+  if (!author || !subject || !Number.isFinite(authoredAt)) {
+    return undefined;
+  }
+
+  return {
+    hash,
+    shortHash: hash.slice(0, 8),
+    subject,
+    author,
+    committedAt: authoredAt * 1000,
+  };
+}
+
+export async function listCommitChanges(
+  repositoryRoot: string,
+  commit: string,
+): Promise<GitCommitChange[]> {
+  const output = await runGit(repositoryRoot, [
+    "diff-tree",
+    "--root",
+    "--first-parent",
+    "--no-commit-id",
+    "-r",
+    "--raw",
+    "-z",
+    "-M",
+    commit,
+  ]);
+  const entries = output.split("\0");
+  const changes: GitCommitChange[] = [];
+
+  for (let index = 0; index < entries.length; index += 1) {
+    const metadata = entries[index];
+    if (!metadata) {
+      continue;
+    }
+    const [, , beforeBlob, afterBlob, rawStatus] = metadata
+      .slice(1)
+      .split(" ");
+    const status = rawStatus?.[0];
+    const firstPath = entries[++index];
+    if (!status || !firstPath || !beforeBlob || !afterBlob) {
+      continue;
+    }
+
+    const renamed = status === "R" || status === "C";
+    const nextPath = renamed ? entries[++index] : undefined;
+    changes.push({
+      status,
+      path: nextPath ?? firstPath,
+      previousPath: renamed ? firstPath : undefined,
+      beforeBlob: /^0+$/.test(beforeBlob) ? undefined : beforeBlob,
+      afterBlob: /^0+$/.test(afterBlob) ? undefined : afterBlob,
+    });
+  }
+
+  return changes;
+}
+
+export async function readGitBlob(
+  repositoryRoot: string,
+  blob: string,
+): Promise<string> {
+  return runGit(repositoryRoot, ["cat-file", "blob", blob], 20 * 1024 * 1024);
 }
 
 export async function fetchAllRemotes(
@@ -473,12 +579,16 @@ function parseTrackingCounts(value: string | undefined): {
   };
 }
 
-async function runGit(cwd: string, args: string[]): Promise<string> {
+async function runGit(
+  cwd: string,
+  args: string[],
+  maxBuffer = 1024 * 1024,
+): Promise<string> {
   try {
     const result = await execFileAsync("git", args, {
       cwd,
       encoding: "utf8",
-      maxBuffer: 1024 * 1024,
+      maxBuffer,
       windowsHide: true,
       env: {
         ...process.env,

@@ -12,8 +12,10 @@ import {
   deleteLocalBranch,
   discoverRepositories,
   forcePushLocalBranch,
+  getLineBlame,
   listLocalBranches,
   listBranchCommits,
+  listCommitChanges,
   listRemotes,
   listRemoteBranches,
   mergeBranchIntoCurrent,
@@ -22,11 +24,107 @@ import {
   rebaseCurrentBranchOnto,
   renameLocalBranch,
   resetCurrentBranchToCommit,
+  readGitBlob,
   resolveGitFile,
   setSkipWorktree,
 } from "../src/git";
 
 const execFileAsync = promisify(execFile);
+
+test("gets commit details for a tracked line", async () => {
+  const repositoryRoot = await mkdtemp(
+    path.join(tmpdir(), "git-toolkit-"),
+  );
+  const filePath = path.join(repositoryRoot, "tracked.txt");
+
+  try {
+    await runGit(repositoryRoot, ["init"]);
+    await writeFile(filePath, "first line\nsecond line\n");
+    await runGit(repositoryRoot, ["add", "tracked.txt"]);
+    await runGit(repositoryRoot, [
+      "-c",
+      "user.name=Line Author",
+      "-c",
+      "user.email=line@example.com",
+      "commit",
+      "-m",
+      "Add tracked lines",
+    ]);
+
+    const blame = await getLineBlame(repositoryRoot, "tracked.txt", 2);
+    assert.equal(blame?.author, "Line Author");
+    assert.equal(blame?.subject, "Add tracked lines");
+    assert.equal(blame?.shortHash.length, 8);
+    assert.ok((blame?.committedAt ?? 0) > 0);
+
+    await writeFile(filePath, "first line\nchanged locally\n");
+    assert.equal(
+      await getLineBlame(repositoryRoot, "tracked.txt", 2),
+      undefined,
+    );
+  } finally {
+    await removeTestRepository(repositoryRoot);
+  }
+});
+
+test("lists commit file changes and reads both blob versions", async () => {
+  const repositoryRoot = await mkdtemp(
+    path.join(tmpdir(), "git-toolkit-"),
+  );
+  const originalPath = path.join(repositoryRoot, "original.txt");
+  const renamedPath = path.join(repositoryRoot, "renamed.txt");
+
+  try {
+    await runGit(repositoryRoot, ["init"]);
+    await writeFile(originalPath, "first\nsecond\nthird\nbefore\n");
+    await runGit(repositoryRoot, ["add", "original.txt"]);
+    await runGit(repositoryRoot, [
+      "-c",
+      "user.name=Git Toolkit Test",
+      "-c",
+      "user.email=test@example.com",
+      "commit",
+      "-m",
+      "Initial commit",
+    ]);
+
+    await runGit(repositoryRoot, ["mv", "original.txt", "renamed.txt"]);
+    await writeFile(renamedPath, "first\nsecond\nthird\nafter\n");
+    await writeFile(path.join(repositoryRoot, "added.txt"), "added\n");
+    await runGit(repositoryRoot, ["add", "."]);
+    await runGit(repositoryRoot, [
+      "-c",
+      "user.name=Git Toolkit Test",
+      "-c",
+      "user.email=test@example.com",
+      "commit",
+      "-m",
+      "Rename and add files",
+    ]);
+    const commit = await runGit(repositoryRoot, ["rev-parse", "HEAD"]);
+
+    const changes = await listCommitChanges(repositoryRoot, commit);
+    assert.deepEqual(
+      changes.map((change) => [change.status, change.path]),
+      [
+        ["A", "added.txt"],
+        ["R", "renamed.txt"],
+      ],
+    );
+    const renamed = changes[1];
+    assert.equal(renamed.previousPath, "original.txt");
+    assert.equal(
+      await readGitBlob(repositoryRoot, renamed.beforeBlob ?? ""),
+      "first\nsecond\nthird\nbefore\n",
+    );
+    assert.equal(
+      await readGitBlob(repositoryRoot, renamed.afterBlob ?? ""),
+      "first\nsecond\nthird\nafter\n",
+    );
+  } finally {
+    await removeTestRepository(repositoryRoot);
+  }
+});
 
 test("skip-worktree hides changes until the record is disabled", async () => {
   const repositoryRoot = await mkdtemp(
